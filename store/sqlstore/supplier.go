@@ -6,7 +6,6 @@ package sqlstore
 import (
 	"context"
 	dbsql "database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	sqltrace "log"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/json-iterator/go"
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/lib/pq"
@@ -24,6 +25,8 @@ import (
 	"github.com/mattermost/mattermost-server/store"
 	"github.com/mattermost/mattermost-server/utils"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
 	INDEX_TYPE_FULL_TEXT = "full_text"

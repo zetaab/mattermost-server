@@ -4,7 +4,6 @@
 package storetest
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -12,9 +11,12 @@ import (
 	"strings"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mattermost/mattermost-server/mlog"
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Container struct {
 	Id              string

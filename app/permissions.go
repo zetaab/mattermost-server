@@ -5,13 +5,15 @@ package app
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/pkg/errors"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const permissionsExportBatchSize = 100
 const systemSchemeName = "00000000-0000-0000-0000-000000000000" // Prevents collisions with user-created schemes.

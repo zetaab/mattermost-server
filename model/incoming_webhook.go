@@ -5,7 +5,6 @@ package model
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"regexp"

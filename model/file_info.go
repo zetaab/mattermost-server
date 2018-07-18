@@ -5,7 +5,6 @@ package model
 
 import (
 	"bytes"
-	"encoding/json"
 	"image"
 	"image/gif"
 	"io"

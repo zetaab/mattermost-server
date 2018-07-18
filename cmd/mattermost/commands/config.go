@@ -4,8 +4,9 @@
 package commands
 
 import (
-	"encoding/json"
 	"os"
+
+	"github.com/json-iterator/go"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -13,6 +14,8 @@ import (
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/mattermost/mattermost-server/utils"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var ConfigCmd = &cobra.Command{
 	Use:   "config",

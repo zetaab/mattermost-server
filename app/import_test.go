@@ -1051,12 +1051,12 @@ func TestImportValidatePostImportData(t *testing.T) {
 	}
 
 	// Test with valid all optional parameters.
-	reactions := []ReactionImportData{ReactionImportData{
+	reactions := []ReactionImportData{{
 		User:      ptrStr("username"),
 		EmojiName: ptrStr("emoji"),
 		CreateAt:  ptrInt64(model.GetMillis()),
 	}}
-	replies := []ReplyImportData{ReplyImportData{
+	replies := []ReplyImportData{{
 		User:     ptrStr("username"),
 		Message:  ptrStr("message"),
 		CreateAt: ptrInt64(model.GetMillis()),
@@ -1374,12 +1374,12 @@ func TestImportValidateDirectPostImportData(t *testing.T) {
 	}
 
 	// Test with valid all optional parameters.
-	reactions := []ReactionImportData{ReactionImportData{
+	reactions := []ReactionImportData{{
 		User:      ptrStr("username"),
 		EmojiName: ptrStr("emoji"),
 		CreateAt:  ptrInt64(model.GetMillis()),
 	}}
-	replies := []ReplyImportData{ReplyImportData{
+	replies := []ReplyImportData{{
 		User:     ptrStr("username"),
 		Message:  ptrStr("message"),
 		CreateAt: ptrInt64(model.GetMillis()),

@@ -4,7 +4,7 @@
 package model
 
 import (
-	"encoding/json"
+	stdjson "encoding/json"
 	"net/http"
 	"time"
 
@@ -111,7 +111,7 @@ func (wsc *WebSocketClient) Listen() {
 		}()
 
 		for {
-			var rawMsg json.RawMessage
+			var rawMsg stdjson.RawMessage
 			var err error
 			if _, rawMsg, err = wsc.Conn.ReadMessage(); err != nil {
 				if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived) {

@@ -5,10 +5,13 @@ package jsonutils
 
 import (
 	"bytes"
-	"encoding/json"
+	stdjson "encoding/json"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type HumanizedJsonError struct {
 	Err       error
@@ -22,9 +25,9 @@ func (e *HumanizedJsonError) Error() string {
 
 // HumanizeJsonError extracts error offsets and annotates the error with useful context
 func HumanizeJsonError(err error, data []byte) error {
-	if syntaxError, ok := err.(*json.SyntaxError); ok {
+	if syntaxError, ok := err.(*stdjson.SyntaxError); ok {
 		return NewHumanizedJsonError(syntaxError, data, syntaxError.Offset)
-	} else if unmarshalError, ok := err.(*json.UnmarshalTypeError); ok {
+	} else if unmarshalError, ok := err.(*stdjson.UnmarshalTypeError); ok {
 		return NewHumanizedJsonError(unmarshalError, data, unmarshalError.Offset)
 	} else {
 		return err

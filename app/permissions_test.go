@@ -1,8 +1,8 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/json-iterator/go"
 	"strings"
 	"testing"
 

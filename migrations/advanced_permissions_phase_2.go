@@ -4,13 +4,16 @@
 package migrations
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/json-iterator/go"
+
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type AdvancedPermissionsPhase2Progress struct {
 	CurrentTable  string `json:"current_table"`

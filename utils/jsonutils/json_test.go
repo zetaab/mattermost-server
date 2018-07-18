@@ -4,7 +4,7 @@
 package jsonutils_test
 
 import (
-	"encoding/json"
+	"github.com/json-iterator/go"
 	"reflect"
 	"testing"
 

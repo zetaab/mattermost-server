@@ -4,9 +4,12 @@
 package mlog
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/json-iterator/go"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // defaultLog manually encodes the log to STDOUT, providing a basic, default logging implementation
 // before mlog is fully configured.

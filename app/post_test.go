@@ -4,8 +4,8 @@
 package app
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/json-iterator/go"
 	"net/http"
 	"net/http/httptest"
 	"strings"

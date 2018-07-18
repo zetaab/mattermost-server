@@ -4,7 +4,6 @@
 package api4
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"

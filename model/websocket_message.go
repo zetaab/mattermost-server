@@ -4,7 +4,7 @@
 package model
 
 import (
-	"encoding/json"
+	stdjson "encoding/json"
 	"fmt"
 	"io"
 )
@@ -68,9 +68,9 @@ type WebsocketBroadcast struct {
 }
 
 type precomputedWebSocketEventJSON struct {
-	Event     json.RawMessage
-	Data      json.RawMessage
-	Broadcast json.RawMessage
+	Event     stdjson.RawMessage
+	Data      stdjson.RawMessage
+	Broadcast stdjson.RawMessage
 }
 
 type WebSocketEvent struct {
@@ -89,9 +89,9 @@ func (m *WebSocketEvent) PrecomputeJSON() {
 	data, _ := json.Marshal(m.Data)
 	broadcast, _ := json.Marshal(m.Broadcast)
 	m.precomputedJSON = &precomputedWebSocketEventJSON{
-		Event:     json.RawMessage(event),
-		Data:      json.RawMessage(data),
-		Broadcast: json.RawMessage(broadcast),
+		Event:     stdjson.RawMessage(event),
+		Data:      stdjson.RawMessage(data),
+		Broadcast: stdjson.RawMessage(broadcast),
 	}
 }
 

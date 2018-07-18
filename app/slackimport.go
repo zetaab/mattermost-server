@@ -6,7 +6,6 @@ package app
 import (
 	"archive/zip"
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"

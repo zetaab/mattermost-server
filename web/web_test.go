@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mattermost/mattermost-server/app"
 	"github.com/mattermost/mattermost-server/mlog"
 	"github.com/mattermost/mattermost-server/model"
@@ -16,6 +17,8 @@ import (
 	"github.com/mattermost/mattermost-server/store/storetest"
 	"github.com/mattermost/mattermost-server/utils"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var ApiClient *model.Client4
 var URL string
@@ -37,13 +40,13 @@ func StopTestStore() {
 }
 
 type TestHelper struct {
-	App             *app.App
+	App *app.App
 
-	BasicUser       *model.User
-	BasicChannel    *model.Channel
-	BasicTeam       *model.Team
+	BasicUser    *model.User
+	BasicChannel *model.Channel
+	BasicTeam    *model.Team
 
-	SystemAdminUser   *model.User
+	SystemAdminUser *model.User
 }
 
 func Setup() *TestHelper {

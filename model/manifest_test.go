@@ -4,7 +4,7 @@
 package model
 
 import (
-	"encoding/json"
+	"github.com/json-iterator/go"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -79,7 +79,7 @@ func TestManifestUnmarshal(t *testing.T) {
 			Header: "theheadertext",
 			Footer: "thefootertext",
 			Settings: []*PluginSetting{
-				&PluginSetting{
+				{
 					Key:                "thesetting",
 					DisplayName:        "thedisplayname",
 					Type:               "dropdown",
@@ -87,7 +87,7 @@ func TestManifestUnmarshal(t *testing.T) {
 					RegenerateHelpText: "theregeneratehelptext",
 					Placeholder:        "theplaceholder",
 					Options: []*PluginOption{
-						&PluginOption{
+						{
 							DisplayName: "theoptiondisplayname",
 							Value:       "thevalue",
 						},
@@ -195,7 +195,7 @@ func TestManifestJson(t *testing.T) {
 			Header: "theheadertext",
 			Footer: "thefootertext",
 			Settings: []*PluginSetting{
-				&PluginSetting{
+				{
 					Key:                "thesetting",
 					DisplayName:        "thedisplayname",
 					Type:               "dropdown",
@@ -203,7 +203,7 @@ func TestManifestJson(t *testing.T) {
 					RegenerateHelpText: "theregeneratehelptext",
 					Placeholder:        "theplaceholder",
 					Options: []*PluginOption{
-						&PluginOption{
+						{
 							DisplayName: "theoptiondisplayname",
 							Value:       "thevalue",
 						},
@@ -260,7 +260,7 @@ func TestManifestClientManifest(t *testing.T) {
 			Header: "theheadertext",
 			Footer: "thefootertext",
 			Settings: []*PluginSetting{
-				&PluginSetting{
+				{
 					Key:                "thesetting",
 					DisplayName:        "thedisplayname",
 					Type:               "dropdown",
@@ -268,7 +268,7 @@ func TestManifestClientManifest(t *testing.T) {
 					RegenerateHelpText: "theregeneratehelptext",
 					Placeholder:        "theplaceholder",
 					Options: []*PluginOption{
-						&PluginOption{
+						{
 							DisplayName: "theoptiondisplayname",
 							Value:       "thevalue",
 						},

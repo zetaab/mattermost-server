@@ -4,7 +4,6 @@
 package model
 
 import (
-	"encoding/json"
 	"io"
 
 	goi18n "github.com/nicksnyder/go-i18n/i18n"

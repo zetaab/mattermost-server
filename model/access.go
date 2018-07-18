@@ -4,10 +4,13 @@
 package model
 
 import (
-	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/json-iterator/go"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
 	ACCESS_TOKEN_GRANT_TYPE  = "authorization_code"

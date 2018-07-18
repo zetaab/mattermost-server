@@ -5,7 +5,6 @@ package model
 
 import (
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sort"

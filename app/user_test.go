@@ -5,7 +5,7 @@ package app
 
 import (
 	"bytes"
-	"encoding/json"
+	"github.com/json-iterator/go"
 	"image"
 	"image/color"
 	"math/rand"

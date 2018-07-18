@@ -6,7 +6,6 @@ package model
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"io"
 	"net/http"
 	"sort"

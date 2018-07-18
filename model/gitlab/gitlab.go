@@ -4,14 +4,16 @@
 package oauthgitlab
 
 import (
-	"encoding/json"
 	"io"
 	"strconv"
 	"strings"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mattermost/mattermost-server/einterfaces"
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type GitLabProvider struct {
 }

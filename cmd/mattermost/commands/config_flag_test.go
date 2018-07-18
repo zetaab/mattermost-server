@@ -11,7 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"encoding/json"
+	"github.com/json-iterator/go"
 
 	"github.com/mattermost/mattermost-server/utils"
 )

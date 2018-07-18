@@ -4,13 +4,16 @@
 package api4
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/json-iterator/go"
+
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func (api *API) InitPost() {
 	api.BaseRoutes.Posts.Handle("", api.ApiSessionRequired(createPost)).Methods("POST")

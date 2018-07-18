@@ -4,11 +4,13 @@
 package utils
 
 import (
-	"encoding/json"
 	"io/ioutil"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 func LoadTimezones(fileName string) model.SupportedTimezones {
 	var supportedTimezones model.SupportedTimezones

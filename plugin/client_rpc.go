@@ -8,7 +8,6 @@ package plugin
 import (
 	"bytes"
 	"encoding/gob"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,11 +16,14 @@ import (
 	"os"
 	"reflect"
 
+	"github.com/json-iterator/go"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/mattermost/mattermost-server/mlog"
 	"github.com/mattermost/mattermost-server/model"
 )
 
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 var hookNameToId map[string]int = make(map[string]int)
 
 type hooksRPCClient struct {

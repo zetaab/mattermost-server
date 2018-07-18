@@ -90,10 +90,10 @@ func TestGetExplicitMentions(t *testing.T) {
 	id3 := model.NewId()
 
 	for name, tc := range map[string]struct {
-		Message  string
+		Message     string
 		Attachments []*model.SlackAttachment
-		Keywords map[string][]string
-		Expected *ExplicitMentions
+		Keywords    map[string][]string
+		Expected    *ExplicitMentions
 	}{
 		"Nobody": {
 			Message:  "this is a message",
@@ -534,7 +534,7 @@ func TestGetExplicitMentions(t *testing.T) {
 
 			post := &model.Post{Message: tc.Message, Props: model.StringInterface{
 				"attachments": tc.Attachments,
-				},
+			},
 			}
 
 			m := GetExplicitMentions(post, tc.Keywords)
@@ -1960,9 +1960,8 @@ func TestGetPushNotificationMessage(t *testing.T) {
 func TestGetMentionsEnabledFields(t *testing.T) {
 
 	attachmentWithTextAndPreText := model.SlackAttachment{
-		Text: "@here with mentions",
+		Text:    "@here with mentions",
 		Pretext: "@Channel some comment for the channel",
-
 	}
 
 	attachmentWithOutPreText := model.SlackAttachment{

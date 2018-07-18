@@ -4,7 +4,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"reflect"
@@ -12,10 +11,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/json-iterator/go"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/mattermost/mattermost-server/model"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type RoleState struct {
 	RoleName   string `json:"roleName"`
