@@ -1539,11 +1539,18 @@ func (s SqlChannelStore) GetMembersForUser(teamId string, userId string) store.S
 	})
 }
 
-func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeDeleted bool) store.StoreChannel {
+func (s SqlChannelStore) AutocompleteInTeam(teamId string, userId string, term string, includeDeleted bool) store.StoreChannel {
 	return store.Do(func(result *store.StoreResult) {
 		deleteFilter := "AND DeleteAt = 0"
+		join := ""
+		joinWhere := ""
 		if includeDeleted {
 			deleteFilter = ""
+			// Channel membership information (and thus the join) is only necessary when including deleted
+			// results because we only want to return archived/deleted channels that users are a member of.
+			// Otherwise channel membership is irrelevant.
+			join = "JOIN ChannelMembers ON ChannelMembers.ChannelId = Channels.Id"
+			joinWhere = "UserId = :UserId AND"
 		}
 
 		queryFormat := `
@@ -1551,7 +1558,9 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 				*
 			FROM
 				Channels
+				` + join + `
 			WHERE
+				` + joinWhere + `
 				TeamId = :TeamId
 				AND Type = 'O'
 				` + deleteFilter + `
@@ -1561,7 +1570,7 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 		var channels model.ChannelList
 
 		if likeClause, likeTerm := s.buildLIKEClause(term); likeClause == "" {
-			if _, err := s.GetReplica().Select(&channels, fmt.Sprintf(queryFormat, ""), map[string]interface{}{"TeamId": teamId}); err != nil {
+			if _, err := s.GetReplica().Select(&channels, fmt.Sprintf(queryFormat, ""), map[string]interface{}{"TeamId": teamId, "UserId": userId}); err != nil {
 				result.Err = model.NewAppError("SqlChannelStore.AutocompleteInTeam", "store.sql_channel.search.app_error", nil, "term="+term+", "+", "+err.Error(), http.StatusInternalServerError)
 			}
 		} else {
@@ -1572,7 +1581,7 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 			fulltextQuery := fmt.Sprintf(queryFormat, "AND "+fulltextClause)
 			query := fmt.Sprintf("(%v) UNION (%v) LIMIT 50", likeQuery, fulltextQuery)
 
-			if _, err := s.GetReplica().Select(&channels, query, map[string]interface{}{"TeamId": teamId, "LikeTerm": likeTerm, "FulltextTerm": fulltextTerm}); err != nil {
+			if _, err := s.GetReplica().Select(&channels, query, map[string]interface{}{"TeamId": teamId, "UserId": userId, "LikeTerm": likeTerm, "FulltextTerm": fulltextTerm}); err != nil {
 				result.Err = model.NewAppError("SqlChannelStore.AutocompleteInTeam", "store.sql_channel.search.app_error", nil, "term="+term+", "+", "+err.Error(), http.StatusInternalServerError)
 			}
 		}
@@ -1584,18 +1593,27 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 	})
 }
 
-func (s SqlChannelStore) SearchInTeam(teamId string, term string, includeDeleted bool) store.StoreChannel {
+func (s SqlChannelStore) SearchInTeam(teamId string, userId string, term string, includeDeleted bool) store.StoreChannel {
 	return store.Do(func(result *store.StoreResult) {
 		deleteFilter := "AND DeleteAt = 0"
+		join := ""
+		joinWhere := ""
 		if includeDeleted {
 			deleteFilter = ""
+			// Channel membership information (and thus the join) is only necessary when including deleted
+			// results because we only want to return archived/deleted channels that users are a member of.
+			// Otherwise channel membership is irrelevant.
+			join = "JOIN ChannelMembers ON ChannelMembers.ChannelId = Channels.Id"
+			joinWhere = "UserId = :UserId AND"
 		}
 		searchQuery := `
 			SELECT
 				*
 			FROM
 				Channels
+			` + join + `
 			WHERE
+				` + joinWhere + `
 				TeamId = :TeamId
 				AND Type = 'O'
 				` + deleteFilter + `
@@ -1603,7 +1621,7 @@ func (s SqlChannelStore) SearchInTeam(teamId string, term string, includeDeleted
 			ORDER BY DisplayName
 			LIMIT 100`
 
-		*result = s.performSearch(searchQuery, term, map[string]interface{}{"TeamId": teamId})
+		*result = s.performSearch(searchQuery, term, map[string]interface{}{"TeamId": teamId, "UserId": userId})
 	})
 }
 

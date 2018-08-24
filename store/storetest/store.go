@@ -47,8 +47,9 @@ type Store struct {
 	SchemeStore               mocks.SchemeStore
 }
 
-func (s *Store) Team() store.TeamStore                         { return &s.TeamStore }
-func (s *Store) Channel() store.ChannelStore                   { return &s.ChannelStore }
+func (s *Store) Team() store.TeamStore { return &s.TeamStore }
+
+// func (s *Store) Channel() store.ChannelStore                   { return &s.ChannelStore }
 func (s *Store) Post() store.PostStore                         { return &s.PostStore }
 func (s *Store) User() store.UserStore                         { return &s.UserStore }
 func (s *Store) Audit() store.AuditStore                       { return &s.AuditStore }

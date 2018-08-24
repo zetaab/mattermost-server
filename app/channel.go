@@ -1497,20 +1497,20 @@ func (a *App) UpdateChannelLastViewedAt(channelIds []string, userId string) *mod
 	return nil
 }
 
-func (a *App) AutocompleteChannels(teamId string, term string) (*model.ChannelList, *model.AppError) {
+func (a *App) AutocompleteChannels(teamId string, userId string, term string) (*model.ChannelList, *model.AppError) {
 	includeDeleted := *a.Config().TeamSettings.ExperimentalViewArchivedChannels
 
-	if result := <-a.Srv.Store.Channel().AutocompleteInTeam(teamId, term, includeDeleted); result.Err != nil {
+	if result := <-a.Srv.Store.Channel().AutocompleteInTeam(teamId, userId, term, includeDeleted); result.Err != nil {
 		return nil, result.Err
 	} else {
 		return result.Data.(*model.ChannelList), nil
 	}
 }
 
-func (a *App) SearchChannels(teamId string, term string) (*model.ChannelList, *model.AppError) {
+func (a *App) SearchChannels(teamId string, userId string, term string) (*model.ChannelList, *model.AppError) {
 	includeDeleted := *a.Config().TeamSettings.ExperimentalViewArchivedChannels
 
-	if result := <-a.Srv.Store.Channel().SearchInTeam(teamId, term, includeDeleted); result.Err != nil {
+	if result := <-a.Srv.Store.Channel().SearchInTeam(teamId, userId, term, includeDeleted); result.Err != nil {
 		return nil, result.Err
 	} else {
 		return result.Data.(*model.ChannelList), nil

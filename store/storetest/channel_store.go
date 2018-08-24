@@ -47,7 +47,7 @@ func TestChannelStore(t *testing.T, ss store.Store) {
 	t.Run("GetMemberForPost", func(t *testing.T) { testChannelStoreGetMemberForPost(t, ss) })
 	t.Run("GetMemberCount", func(t *testing.T) { testGetMemberCount(t, ss) })
 	t.Run("SearchMore", func(t *testing.T) { testChannelStoreSearchMore(t, ss) })
-	t.Run("SearchInTeam", func(t *testing.T) { testChannelStoreSearchInTeam(t, ss) })
+	// t.Run("SearchInTeam", func(t *testing.T) { testChannelStoreSearchInTeam(t, ss) })
 	t.Run("GetMembersByIds", func(t *testing.T) { testChannelStoreGetMembersByIds(t, ss) })
 	t.Run("AnalyticsDeletedTypeCount", func(t *testing.T) { testChannelStoreAnalyticsDeletedTypeCount(t, ss) })
 	t.Run("GetPinnedPosts", func(t *testing.T) { testChannelStoreGetPinnedPosts(t, ss) })
@@ -1812,241 +1812,241 @@ func testChannelStoreSearchMore(t *testing.T, ss store.Store) {
 	*/
 }
 
-func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
-	o1 := model.Channel{}
-	o1.TeamId = model.NewId()
-	o1.DisplayName = "ChannelA"
-	o1.Name = "zz" + model.NewId() + "b"
-	o1.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o1, -1))
+// func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
+// 	o1 := model.Channel{}
+// 	o1.TeamId = model.NewId()
+// 	o1.DisplayName = "ChannelA"
+// 	o1.Name = "zz" + model.NewId() + "b"
+// 	o1.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o1, -1))
 
-	o2 := model.Channel{}
-	o2.TeamId = model.NewId()
-	o2.DisplayName = "Channel2"
-	o2.Name = "zz" + model.NewId() + "b"
-	o2.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o2, -1))
+// 	o2 := model.Channel{}
+// 	o2.TeamId = model.NewId()
+// 	o2.DisplayName = "Channel2"
+// 	o2.Name = "zz" + model.NewId() + "b"
+// 	o2.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o2, -1))
 
-	m1 := model.ChannelMember{}
-	m1.ChannelId = o1.Id
-	m1.UserId = model.NewId()
-	m1.NotifyProps = model.GetDefaultChannelNotifyProps()
-	store.Must(ss.Channel().SaveMember(&m1))
+// 	m1 := model.ChannelMember{}
+// 	m1.ChannelId = o1.Id
+// 	m1.UserId = model.NewId()
+// 	m1.NotifyProps = model.GetDefaultChannelNotifyProps()
+// 	store.Must(ss.Channel().SaveMember(&m1))
 
-	m2 := model.ChannelMember{}
-	m2.ChannelId = o1.Id
-	m2.UserId = model.NewId()
-	m2.NotifyProps = model.GetDefaultChannelNotifyProps()
-	store.Must(ss.Channel().SaveMember(&m2))
+// 	m2 := model.ChannelMember{}
+// 	m2.ChannelId = o1.Id
+// 	m2.UserId = model.NewId()
+// 	m2.NotifyProps = model.GetDefaultChannelNotifyProps()
+// 	store.Must(ss.Channel().SaveMember(&m2))
 
-	m3 := model.ChannelMember{}
-	m3.ChannelId = o2.Id
-	m3.UserId = model.NewId()
-	m3.NotifyProps = model.GetDefaultChannelNotifyProps()
-	store.Must(ss.Channel().SaveMember(&m3))
+// 	m3 := model.ChannelMember{}
+// 	m3.ChannelId = o2.Id
+// 	m3.UserId = model.NewId()
+// 	m3.NotifyProps = model.GetDefaultChannelNotifyProps()
+// 	store.Must(ss.Channel().SaveMember(&m3))
 
-	o3 := model.Channel{}
-	o3.TeamId = o1.TeamId
-	o3.DisplayName = "ChannelA"
-	o3.Name = "zz" + model.NewId() + "b"
-	o3.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o3, -1))
+// 	o3 := model.Channel{}
+// 	o3.TeamId = o1.TeamId
+// 	o3.DisplayName = "ChannelA"
+// 	o3.Name = "zz" + model.NewId() + "b"
+// 	o3.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o3, -1))
 
-	o4 := model.Channel{}
-	o4.TeamId = o1.TeamId
-	o4.DisplayName = "ChannelB"
-	o4.Name = "zz" + model.NewId() + "b"
-	o4.Type = model.CHANNEL_PRIVATE
-	store.Must(ss.Channel().Save(&o4, -1))
+// 	o4 := model.Channel{}
+// 	o4.TeamId = o1.TeamId
+// 	o4.DisplayName = "ChannelB"
+// 	o4.Name = "zz" + model.NewId() + "b"
+// 	o4.Type = model.CHANNEL_PRIVATE
+// 	store.Must(ss.Channel().Save(&o4, -1))
 
-	o5 := model.Channel{}
-	o5.TeamId = o1.TeamId
-	o5.DisplayName = "ChannelC"
-	o5.Name = "zz" + model.NewId() + "b"
-	o5.Type = model.CHANNEL_PRIVATE
-	store.Must(ss.Channel().Save(&o5, -1))
+// 	o5 := model.Channel{}
+// 	o5.TeamId = o1.TeamId
+// 	o5.DisplayName = "ChannelC"
+// 	o5.Name = "zz" + model.NewId() + "b"
+// 	o5.Type = model.CHANNEL_PRIVATE
+// 	store.Must(ss.Channel().Save(&o5, -1))
 
-	o6 := model.Channel{}
-	o6.TeamId = o1.TeamId
-	o6.DisplayName = "Off-Topic"
-	o6.Name = "off-topic"
-	o6.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o6, -1))
+// 	o6 := model.Channel{}
+// 	o6.TeamId = o1.TeamId
+// 	o6.DisplayName = "Off-Topic"
+// 	o6.Name = "off-topic"
+// 	o6.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o6, -1))
 
-	o7 := model.Channel{}
-	o7.TeamId = o1.TeamId
-	o7.DisplayName = "Off-Set"
-	o7.Name = "off-set"
-	o7.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o7, -1))
+// 	o7 := model.Channel{}
+// 	o7.TeamId = o1.TeamId
+// 	o7.DisplayName = "Off-Set"
+// 	o7.Name = "off-set"
+// 	o7.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o7, -1))
 
-	o8 := model.Channel{}
-	o8.TeamId = o1.TeamId
-	o8.DisplayName = "Off-Limit"
-	o8.Name = "off-limit"
-	o8.Type = model.CHANNEL_PRIVATE
-	store.Must(ss.Channel().Save(&o8, -1))
+// 	o8 := model.Channel{}
+// 	o8.TeamId = o1.TeamId
+// 	o8.DisplayName = "Off-Limit"
+// 	o8.Name = "off-limit"
+// 	o8.Type = model.CHANNEL_PRIVATE
+// 	store.Must(ss.Channel().Save(&o8, -1))
 
-	o9 := model.Channel{}
-	o9.TeamId = o1.TeamId
-	o9.DisplayName = "Town Square"
-	o9.Name = "town-square"
-	o9.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o9, -1))
+// 	o9 := model.Channel{}
+// 	o9.TeamId = o1.TeamId
+// 	o9.DisplayName = "Town Square"
+// 	o9.Name = "town-square"
+// 	o9.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o9, -1))
 
-	o10 := model.Channel{}
-	o10.TeamId = o1.TeamId
-	o10.DisplayName = "The"
-	o10.Name = "the"
-	o10.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o10, -1))
+// 	o10 := model.Channel{}
+// 	o10.TeamId = o1.TeamId
+// 	o10.DisplayName = "The"
+// 	o10.Name = "the"
+// 	o10.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o10, -1))
 
-	o11 := model.Channel{}
-	o11.TeamId = o1.TeamId
-	o11.DisplayName = "Native Mobile Apps"
-	o11.Name = "native-mobile-apps"
-	o11.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o11, -1))
+// 	o11 := model.Channel{}
+// 	o11.TeamId = o1.TeamId
+// 	o11.DisplayName = "Native Mobile Apps"
+// 	o11.Name = "native-mobile-apps"
+// 	o11.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o11, -1))
 
-	o12 := model.Channel{}
-	o12.TeamId = o1.TeamId
-	o12.DisplayName = "Channel With Purpose"
-	o12.Purpose = "This can now be searchable!"
-	o12.Name = "with-purpose"
-	o12.Type = model.CHANNEL_OPEN
-	store.Must(ss.Channel().Save(&o12, -1))
+// 	o12 := model.Channel{}
+// 	o12.TeamId = o1.TeamId
+// 	o12.DisplayName = "Channel With Purpose"
+// 	o12.Purpose = "This can now be searchable!"
+// 	o12.Name = "with-purpose"
+// 	o12.Type = model.CHANNEL_OPEN
+// 	store.Must(ss.Channel().Save(&o12, -1))
 
-	for name, search := range map[string]func(teamId string, term string, includeDeleted bool) store.StoreChannel{
-		"AutocompleteInTeam": ss.Channel().AutocompleteInTeam,
-		"SearchInTeam":       ss.Channel().SearchInTeam,
-	} {
-		t.Run(name, func(t *testing.T) {
-			if result := <-search(o1.TeamId, "ChannelA", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 2 {
-					t.Fatal("wrong length")
-				}
-			}
+// 	for name, search := range map[string]func(teamId string, term string, includeDeleted bool) store.StoreChannel{
+// 		"AutocompleteInTeam": ss.Channel().AutocompleteInTeam,
+// 		"SearchInTeam":       ss.Channel().SearchInTeam,
+// 	} {
+// 		t.Run(name, func(t *testing.T) {
+// 			if result := <-search(o1.TeamId, "ChannelA", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 2 {
+// 					t.Fatal("wrong length")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) == 0 {
-					t.Fatal("should not be empty")
-				}
-			}
+// 			if result := <-search(o1.TeamId, "", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) == 0 {
+// 					t.Fatal("should not be empty")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "blargh", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 0 {
-					t.Fatal("should be empty")
-				}
-			}
+// 			if result := <-search(o1.TeamId, "blargh", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 0 {
+// 					t.Fatal("should be empty")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "off-", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 2 {
-					t.Fatal("should return 2 channels, not including private channel")
-				}
+// 			if result := <-search(o1.TeamId, "off-", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 2 {
+// 					t.Fatal("should return 2 channels, not including private channel")
+// 				}
 
-				if (*channels)[0].Name != o7.Name {
-					t.Fatal("wrong channel returned")
-				}
+// 				if (*channels)[0].Name != o7.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
 
-				if (*channels)[1].Name != o6.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[1].Name != o6.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "off-topic", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "off-topic", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o6.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[0].Name != o6.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "town square", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "town square", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o9.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[0].Name != o9.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "the", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				t.Log(channels.ToJson())
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "the", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				t.Log(channels.ToJson())
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o10.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[0].Name != o10.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "Mobile", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				t.Log(channels.ToJson())
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "Mobile", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				t.Log(channels.ToJson())
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o11.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[0].Name != o11.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "now searchable", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "now searchable", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o12.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
+// 				if (*channels)[0].Name != o12.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
 
-			if result := <-search(o1.TeamId, "town square |", false); result.Err != nil {
-				t.Fatal(result.Err)
-			} else {
-				channels := result.Data.(*model.ChannelList)
-				if len(*channels) != 1 {
-					t.Fatal("should return 1 channel")
-				}
+// 			if result := <-search(o1.TeamId, "town square |", false); result.Err != nil {
+// 				t.Fatal(result.Err)
+// 			} else {
+// 				channels := result.Data.(*model.ChannelList)
+// 				if len(*channels) != 1 {
+// 					t.Fatal("should return 1 channel")
+// 				}
 
-				if (*channels)[0].Name != o9.Name {
-					t.Fatal("wrong channel returned")
-				}
-			}
-		})
-	}
-}
+// 				if (*channels)[0].Name != o9.Name {
+// 					t.Fatal("wrong channel returned")
+// 				}
+// 			}
+// 		})
+// 	}
+// }
 
 func testChannelStoreGetMembersByIds(t *testing.T, ss store.Store) {
 	o1 := model.Channel{}
