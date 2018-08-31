@@ -501,7 +501,7 @@
   },
   {
     "id": "api.command_echo.delay.app_error",
-    "translation": "Delays must be under 10000 seconds"
+    "translation": "Delays must be under 43200 seconds."
   },
   {
     "id": "api.command_echo.desc",
