@@ -64,7 +64,7 @@ func (me *EchoProvider) DoCommand(a *App, args *model.CommandArgs, message strin
 		}
 	}
 
-	if delay > 10000 {
+	if delay > 43200 {
 		return &model.CommandResponse{Text: args.T("api.command_echo.delay.app_error"), ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL}
 	}
 
