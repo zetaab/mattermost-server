@@ -33,35 +33,41 @@ const (
 )
 
 const (
-	EXIT_CREATE_TABLE                = 100
-	EXIT_DB_OPEN                     = 101
-	EXIT_PING                        = 102
-	EXIT_NO_DRIVER                   = 103
-	EXIT_TABLE_EXISTS                = 104
-	EXIT_TABLE_EXISTS_MYSQL          = 105
-	EXIT_COLUMN_EXISTS               = 106
-	EXIT_DOES_COLUMN_EXISTS_POSTGRES = 107
-	EXIT_DOES_COLUMN_EXISTS_MYSQL    = 108
-	EXIT_DOES_COLUMN_EXISTS_MISSING  = 109
-	EXIT_CREATE_COLUMN_POSTGRES      = 110
-	EXIT_CREATE_COLUMN_MYSQL         = 111
-	EXIT_CREATE_COLUMN_MISSING       = 112
-	EXIT_REMOVE_COLUMN               = 113
-	EXIT_RENAME_COLUMN               = 114
-	EXIT_MAX_COLUMN                  = 115
-	EXIT_ALTER_COLUMN                = 116
-	EXIT_CREATE_INDEX_POSTGRES       = 117
-	EXIT_CREATE_INDEX_MYSQL          = 118
-	EXIT_CREATE_INDEX_FULL_MYSQL     = 119
-	EXIT_CREATE_INDEX_MISSING        = 120
-	EXIT_REMOVE_INDEX_POSTGRES       = 121
-	EXIT_REMOVE_INDEX_MYSQL          = 122
-	EXIT_REMOVE_INDEX_MISSING        = 123
-	EXIT_REMOVE_TABLE                = 134
-	EXIT_CREATE_INDEX_SQLITE         = 135
-	EXIT_REMOVE_INDEX_SQLITE         = 136
-	EXIT_TABLE_EXISTS_SQLITE         = 137
-	EXIT_DOES_COLUMN_EXISTS_SQLITE   = 138
+	EXIT_CREATE_TABLE                 = 100
+	EXIT_DB_OPEN                      = 101
+	EXIT_PING                         = 102
+	EXIT_NO_DRIVER                    = 103
+	EXIT_TABLE_EXISTS                 = 104
+	EXIT_TABLE_EXISTS_MYSQL           = 105
+	EXIT_COLUMN_EXISTS                = 106
+	EXIT_DOES_COLUMN_EXISTS_POSTGRES  = 107
+	EXIT_DOES_COLUMN_EXISTS_MYSQL     = 108
+	EXIT_DOES_COLUMN_EXISTS_MISSING   = 109
+	EXIT_CREATE_COLUMN_POSTGRES       = 110
+	EXIT_CREATE_COLUMN_MYSQL          = 111
+	EXIT_CREATE_COLUMN_MISSING        = 112
+	EXIT_REMOVE_COLUMN                = 113
+	EXIT_RENAME_COLUMN                = 114
+	EXIT_MAX_COLUMN                   = 115
+	EXIT_ALTER_COLUMN                 = 116
+	EXIT_CREATE_INDEX_POSTGRES        = 117
+	EXIT_CREATE_INDEX_MYSQL           = 118
+	EXIT_CREATE_INDEX_FULL_MYSQL      = 119
+	EXIT_CREATE_INDEX_MISSING         = 120
+	EXIT_REMOVE_INDEX_POSTGRES        = 121
+	EXIT_REMOVE_INDEX_MYSQL           = 122
+	EXIT_REMOVE_INDEX_MISSING         = 123
+	EXIT_REMOVE_TABLE                 = 134
+	EXIT_CREATE_INDEX_SQLITE          = 135
+	EXIT_REMOVE_INDEX_SQLITE          = 136
+	EXIT_TABLE_EXISTS_SQLITE          = 137
+	EXIT_DOES_COLUMN_EXISTS_SQLITE    = 138
+	EXIT_DOES_TRIGGER_EXISTS_POSTGRES = 139
+	EXIT_DOES_TRIGGER_EXISTS_MYSQL    = 140
+	EXIT_DOES_TRIGGER_EXISTS_MISSING  = 141
+	EXIT_CREATE_TRIGGER_POSTGRES      = 142
+	EXIT_CREATE_TRIGGER_MYSQL         = 143
+	EXIT_CREATE_TRIGGER_MISSING       = 144
 )
 
 type SqlSupplierOldStores struct {
@@ -150,6 +156,11 @@ func NewSqlSupplier(settings model.SqlSettings, metrics einterfaces.MetricsInter
 		time.Sleep(time.Second)
 		os.Exit(EXIT_CREATE_TABLE)
 	}
+
+	// This store's triggers should exist before the migration is run to ensure the
+	// corresponding tables stay in sync. Whether or not a trigger should be created before
+	// or after a migration is likely to be decided on a case-by-case basis.
+	supplier.oldStores.channel.(*SqlChannelStore).CreateTriggersIfNotExists()
 
 	UpgradeDatabase(supplier)
 
@@ -449,6 +460,52 @@ func (ss *SqlSupplier) DoesColumnExist(tableName string, columnName string) bool
 			mlog.Critical(fmt.Sprintf("Failed to check if column exists %v", err))
 			time.Sleep(time.Second)
 			os.Exit(EXIT_DOES_COLUMN_EXISTS_SQLITE)
+		}
+
+		return count > 0
+
+	} else {
+		mlog.Critical("Failed to check if column exists because of missing driver")
+		time.Sleep(time.Second)
+		os.Exit(EXIT_DOES_COLUMN_EXISTS_MISSING)
+		return false
+	}
+}
+
+func (ss *SqlSupplier) DoesTriggerExist(triggerName string) bool {
+	if ss.DriverName() == model.DATABASE_DRIVER_POSTGRES {
+		count, err := ss.GetMaster().SelectInt(`
+			SELECT
+				COUNT(0)
+			FROM
+				pg_trigger
+			WHERE
+				tgname = ?
+		`, triggerName)
+
+		if err != nil {
+			mlog.Critical(fmt.Sprintf("Failed to check if trigger exists %v", err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_DOES_TRIGGER_EXISTS_POSTGRES)
+		}
+
+		return count > 0
+
+	} else if ss.DriverName() == model.DATABASE_DRIVER_MYSQL {
+		count, err := ss.GetMaster().SelectInt(`
+			SELECT
+				COUNT(0)
+			FROM
+				information_schema.triggers
+			WHERE
+				trigger_schema = DATABASE()
+			AND	trigger_name = ?
+		`, triggerName)
+
+		if err != nil {
+			mlog.Critical(fmt.Sprintf("Failed to check if trigger exists %v", err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_DOES_TRIGGER_EXISTS_MYSQL)
 		}
 
 		return count > 0

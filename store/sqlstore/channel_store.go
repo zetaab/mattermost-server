@@ -7,9 +7,11 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mattermost/gorp"
 
@@ -49,6 +51,17 @@ type channelMember struct {
 	LastUpdateAt int64
 	SchemeUser   sql.NullBool
 	SchemeAdmin  sql.NullBool
+}
+
+// publicChannel is a subset of the metadata corresponding to public channels only.
+type publicChannel struct {
+	Id          string `json:"id"`
+	DeleteAt    int64  `json:"delete_at"`
+	TeamId      string `json:"team_id"`
+	DisplayName string `json:"display_name"`
+	Name        string `json:"name"`
+	Header      string `json:"header"`
+	Purpose     string `json:"purpose"`
 }
 
 func NewChannelMemberFromModel(cm *model.ChannelMember) *channelMember {
@@ -278,6 +291,15 @@ func NewSqlChannelStore(sqlStore SqlStore, metrics einterfaces.MetricsInterface)
 		tablem.ColMap("UserId").SetMaxSize(26)
 		tablem.ColMap("Roles").SetMaxSize(64)
 		tablem.ColMap("NotifyProps").SetMaxSize(2000)
+
+		tablePublicChannels := db.AddTableWithName(publicChannel{}, "PublicChannels").SetKeys(false, "Id")
+		tablePublicChannels.ColMap("Id").SetMaxSize(26)
+		tablePublicChannels.ColMap("TeamId").SetMaxSize(26)
+		tablePublicChannels.ColMap("DisplayName").SetMaxSize(64)
+		tablePublicChannels.ColMap("Name").SetMaxSize(64)
+		tablePublicChannels.SetUniqueTogether("Name", "TeamId")
+		tablePublicChannels.ColMap("Header").SetMaxSize(1024)
+		tablePublicChannels.ColMap("Purpose").SetMaxSize(250)
 	}
 
 	return s
@@ -299,6 +321,179 @@ func (s SqlChannelStore) CreateIndexesIfNotExists() {
 	s.CreateIndexIfNotExists("idx_channelmembers_user_id", "ChannelMembers", "UserId")
 
 	s.CreateFullTextIndexIfNotExists("idx_channel_search_txt", "Channels", "Name, DisplayName, Purpose")
+}
+
+func (s SqlChannelStore) CreateTriggersIfNotExists() {
+	if s.DriverName() == model.DATABASE_DRIVER_POSTGRES {
+		if !s.DoesTriggerExist("trigger_channels") {
+			transaction, err := s.GetMaster().Begin()
+			if err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_POSTGRES)
+			}
+
+			if _, err := transaction.ExecNoTimeout(`
+				CREATE FUNCTION channels_copy_to_public_channels() RETURNS TRIGGER 
+					SECURITY DEFINER
+					LANGUAGE plpgsql
+				AS $$
+					DECLARE
+						counter int := 0;
+					BEGIN
+						IF (TG_OP = 'DELETE' AND OLD.Type = 'O') OR (TG_OP = 'UPDATE' AND NEW.Type != 'O') THEN
+							DELETE FROM
+								PublicChannels
+							WHERE
+								Id = NEW.Id
+						ELSE IF NEW.Type = 'O' THEN
+							-- Emulate an UPSERT that is resilient to a limited number of concurrent failures.
+							-- This can be replaced with the UPSERT functionality in Postgres 9.5+ once we support same.
+							WHILE counter < 3 LOOP
+								counter := counter + 1
+								UPDATE
+									PublicChannels
+								SET
+									DeleteAt = NEW.DeleteAt,
+									TeamId = NEW.TeamId,
+									DisplayName = NEW.DisplayName,
+									Name = NEW.Name,
+									Header = NEW.Header,
+									Purpose = NEW.Purpose
+								WHERE
+									Id = NEW.Id
+
+								IF NOT FOUND THEN
+									INSERT INTO 
+										PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+									VALUES
+										(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+								END IF;
+							END LOOP;
+						END IF
+
+						RETURN NULL;
+					END;
+				$$;
+			`); err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_POSTGRES)
+			}
+
+			if _, err := transaction.ExecNoTimeout(`
+				CREATE TRIGGER 
+					trigger_channels
+				AFTER INSERT OR UPDATE OR DELETE ON
+					Channels
+				FOR EACH ROW EXECUTE PROCEDURE 
+					channels_copy_to_public_channels();
+			`); err != nil {
+				mlog.Critical("Failed to create trigger", mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_POSTGRES)
+			}
+
+			if err := transaction.Commit(); err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_POSTGRES)
+			}
+		}
+	} else if s.DriverName() == model.DATABASE_DRIVER_MYSQL {
+		// Note that DDL statements in MySQL (CREATE TABLE, CREATE TRIGGER, etc.) cannot
+		// be rolled back inside a transaction (unlike PostgreSQL), so there's no point in
+		// wrapping what follows inside a transaction.
+
+		if !s.DoesTriggerExist("trigger_channels_insert") {
+			if _, err := s.GetMaster().ExecNoTimeout(`
+				CREATE TRIGGER 
+					trigger_channels_insert 
+				AFTER INSERT ON
+					Channels
+				FOR EACH ROW
+				BEGIN
+					IF NEW.Type = 'O' THEN
+						INSERT INTO 
+							PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+						VALUES
+							(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+						ON DUPLICATE KEY UPDATE
+							DeleteAt = NEW.DeleteAt,
+							TeamId = NEW.TeamId,
+							DisplayName = NEW.DisplayName,
+							Name = NEW.Name,
+							Header = NEW.Header,
+							Purpose = NEW.Purpose;
+					END IF;
+				END;
+			`); err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_insert"), mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_MYSQL)
+			}
+		}
+
+		if !s.DoesTriggerExist("trigger_channels_update") {
+			if _, err := s.GetMaster().ExecNoTimeout(`
+				CREATE TRIGGER 
+					trigger_channels_update
+				AFTER UPDATE ON
+					Channels
+				FOR EACH ROW
+				BEGIN
+					IF OLD.Type = 'O' AND NEW.Type != 'O' THEN
+						DELETE FROM
+							PublicChannels
+						WHERE
+							Id = NEW.Id;
+					ELSEIF NEW.Type = 'O' THEN
+						INSERT INTO 
+							PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+						VALUES
+							(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+						ON DUPLICATE KEY UPDATE
+							DeleteAt = NEW.DeleteAt,
+							TeamId = NEW.TeamId,
+							DisplayName = NEW.DisplayName,
+							Name = NEW.Name,
+							Header = NEW.Header,
+							Purpose = NEW.Purpose;
+					END IF;
+				END;
+			`); err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_update"), mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_MYSQL)
+			}
+		}
+
+		if !s.DoesTriggerExist("trigger_channels_delete") {
+			if _, err := s.GetMaster().ExecNoTimeout(`
+				CREATE TRIGGER 
+					trigger_channels_delete
+				AFTER DELETE ON
+					Channels
+				FOR EACH ROW
+				BEGIN
+					IF OLD.Type = 'O' THEN
+						DELETE FROM
+							PublicChannels
+						WHERE
+							Id = OLD.Id;
+					END IF;
+				END;
+			`); err != nil {
+				mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_delete"), mlog.Err(err))
+				time.Sleep(time.Second)
+				os.Exit(EXIT_CREATE_TRIGGER_MYSQL)
+			}
+		}
+	} else {
+		mlog.Critical("Failed to create trigger because of missing driver")
+		time.Sleep(time.Second)
+		os.Exit(EXIT_CREATE_TRIGGER_MISSING)
+	}
 }
 
 func (s SqlChannelStore) Save(channel *model.Channel, maxChannelsPerTeam int64) store.StoreChannel {
@@ -1597,16 +1792,22 @@ func (s SqlChannelStore) SearchInTeam(teamId string, term string, includeDeleted
 		}
 		searchQuery := `
 			SELECT
-				*
+			    *
 			FROM
-				Channels
-			WHERE
-				TeamId = :TeamId
-				AND Type = 'O'
+			    Channels
+			WHERE Id IN (
+			    SELECT
+			        Id
+			    FROM
+			        PublicChannelsView
+			    WHERE
+			        TeamId = :TeamId
 				` + deleteFilter + `
 				SEARCH_CLAUSE
-			ORDER BY DisplayName
-			LIMIT 100`
+			    ORDER BY DisplayName
+			    LIMIT 100
+			)
+		`
 
 		*result = s.performSearch(searchQuery, term, map[string]interface{}{"TeamId": teamId})
 	})
