@@ -509,15 +509,16 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 					PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
 				VALUES
 					(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
-				ON CONFLICT UPDATE SET
-					DeleteAt = NEW.DeleteAt,
-					TeamId = NEW.TeamId,
-					DisplayName = NEW.DisplayName,
-					Name = NEW.Name,
-					Header = NEW.Header,
-					Purpose = NEW.Purpose
-				WHERE
-					Id = NEW.Id;
+				-- ON CONFLICT DO UPDATE SET
+				--	DeleteAt = NEW.DeleteAt,
+				--	TeamId = NEW.TeamId,
+				--	DisplayName = NEW.DisplayName,
+				--	Name = NEW.Name,
+				--	Header = NEW.Header,
+				--	Purpose = NEW.Purpose
+				-- WHERE
+				--	Id = NEW.Id
+				;
 			END;
 		`); err != nil {
 			mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_insert"), mlog.Err(err))
@@ -552,11 +553,14 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 			FOR EACH ROW
 			WHEN OLD.Type != 'O' AND NEW.Type = 'O'
 			BEGIN
-				INSERT INTO 
-					PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
-				VALUES
-					(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
-				ON CONFLICT UPDATE SET
+				-- INSERT INTO 
+				--	PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+				-- VALUES
+				--	(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+				-- ON CONFLICT DO UPDATE SET
+				UPDATE 
+					PublicChannels
+				SET
 					DeleteAt = NEW.DeleteAt,
 					TeamId = NEW.TeamId,
 					DisplayName = NEW.DisplayName,
