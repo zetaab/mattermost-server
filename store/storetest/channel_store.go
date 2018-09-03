@@ -516,9 +516,10 @@ func testChannelStoreDelete(t *testing.T, ss store.Store) {
 	<-ss.Channel().PermanentDelete(o2.Id)
 
 	cresult = <-ss.Channel().GetChannels(o1.TeamId, m1.UserId, false)
-	t.Log(cresult.Err)
-	if cresult.Err.Id != "store.sql_channel.get_channels.not_found.app_error" {
-		t.Fatal("no channels should be found")
+	if assert.NotNil(t, cresult.Err) {
+		require.Equal(t, "store.sql_channel.get_channels.not_found.app_error", cresult.Err.Id)
+	} else {
+		require.Equal(t, &model.ChannelList{}, cresult.Data.(*model.ChannelList))
 	}
 
 	if r := <-ss.Channel().PermanentDeleteByTeam(o1.TeamId); r.Err != nil {

@@ -312,15 +312,22 @@ func (s SqlChannelStore) CreateIndexesIfNotExists() {
 	s.CreateIndexIfNotExists("idx_channels_create_at", "Channels", "CreateAt")
 	s.CreateIndexIfNotExists("idx_channels_delete_at", "Channels", "DeleteAt")
 
+	s.CreateIndexIfNotExists("idx_publicchannels_team_id", "PublicChannels", "TeamId")
+	s.CreateIndexIfNotExists("idx_publicchannels_name", "PublicChannels", "Name")
+	s.CreateIndexIfNotExists("idx_publicchannels_delete_at", "PublicChannels", "DeleteAt")
+
 	if s.DriverName() == model.DATABASE_DRIVER_POSTGRES {
 		s.CreateIndexIfNotExists("idx_channels_name_lower", "Channels", "lower(Name)")
 		s.CreateIndexIfNotExists("idx_channels_displayname_lower", "Channels", "lower(DisplayName)")
+		s.CreateIndexIfNotExists("idx_publicchannels_name_lower", "PublicChannels", "lower(Name)")
+		s.CreateIndexIfNotExists("idx_publicchannels_displayname_lower", "PublicChannels", "lower(DisplayName)")
 	}
 
 	s.CreateIndexIfNotExists("idx_channelmembers_channel_id", "ChannelMembers", "ChannelId")
 	s.CreateIndexIfNotExists("idx_channelmembers_user_id", "ChannelMembers", "UserId")
 
 	s.CreateFullTextIndexIfNotExists("idx_channel_search_txt", "Channels", "Name, DisplayName, Purpose")
+	s.CreateFullTextIndexIfNotExists("idx_publicchannels_search_txt", "PublicChannels", "Name, DisplayName, Purpose")
 }
 
 func (s SqlChannelStore) CreateTriggersIfNotExists() {
@@ -334,7 +341,7 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 			}
 
 			if _, err := transaction.ExecNoTimeout(`
-				CREATE FUNCTION channels_copy_to_public_channels() RETURNS TRIGGER 
+				CREATE OR REPLACE FUNCTION channels_copy_to_public_channels() RETURNS TRIGGER 
 					SECURITY DEFINER
 					LANGUAGE plpgsql
 				AS $$
@@ -345,12 +352,12 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 							DELETE FROM
 								PublicChannels
 							WHERE
-								Id = NEW.Id
-						ELSE IF NEW.Type = 'O' THEN
+								Id = OLD.Id;
+						ELSEIF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') AND NEW.Type = 'O' THEN
 							-- Emulate an UPSERT that is resilient to a limited number of concurrent failures.
 							-- This can be replaced with the UPSERT functionality in Postgres 9.5+ once we support same.
 							WHILE counter < 3 LOOP
-								counter := counter + 1
+								counter := counter + 1;
 								UPDATE
 									PublicChannels
 								SET
@@ -361,19 +368,19 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 									Header = NEW.Header,
 									Purpose = NEW.Purpose
 								WHERE
-									Id = NEW.Id
+									Id = NEW.Id;
 
 								IF NOT FOUND THEN
 									INSERT INTO 
 										PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
 									VALUES
-										(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+										(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose);
 								END IF;
 							END LOOP;
-						END IF
+						END IF;
 
 						RETURN NULL;
-					END;
+					END
 				$$;
 			`); err != nil {
 				mlog.Critical("Failed to create trigger function", mlog.Err(err))
@@ -488,6 +495,100 @@ func (s SqlChannelStore) CreateTriggersIfNotExists() {
 				time.Sleep(time.Second)
 				os.Exit(EXIT_CREATE_TRIGGER_MYSQL)
 			}
+		}
+	} else if s.DriverName() == model.DATABASE_DRIVER_SQLITE {
+		if _, err := s.GetMaster().ExecNoTimeout(`
+			CREATE TRIGGER IF NOT EXISTS
+				trigger_channels_insert 
+			AFTER INSERT ON
+				Channels
+			FOR EACH ROW
+			WHEN NEW.Type = 'O'
+			BEGIN
+				INSERT INTO 
+					PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+				VALUES
+					(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+				ON CONFLICT UPDATE SET
+					DeleteAt = NEW.DeleteAt,
+					TeamId = NEW.TeamId,
+					DisplayName = NEW.DisplayName,
+					Name = NEW.Name,
+					Header = NEW.Header,
+					Purpose = NEW.Purpose
+				WHERE
+					Id = NEW.Id;
+			END;
+		`); err != nil {
+			mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_insert"), mlog.Err(err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_CREATE_TRIGGER_SQLITE)
+		}
+
+		if _, err := s.GetMaster().ExecNoTimeout(`
+			CREATE TRIGGER IF NOT EXISTS
+				trigger_channels_update_delete
+			AFTER UPDATE ON
+				Channels
+			FOR EACH ROW
+			WHEN OLD.Type = 'O' AND NEW.Type != 'O'
+			BEGIN
+				DELETE FROM
+					PublicChannels
+				WHERE
+					Id = NEW.Id;
+			END;
+		`); err != nil {
+			mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_update_delete"), mlog.Err(err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_CREATE_TRIGGER_SQLITE)
+		}
+
+		if _, err := s.GetMaster().ExecNoTimeout(`
+			CREATE TRIGGER IF NOT EXISTS
+				trigger_channels_update
+			AFTER UPDATE ON
+				Channels
+			FOR EACH ROW
+			WHEN OLD.Type != 'O' AND NEW.Type = 'O'
+			BEGIN
+				INSERT INTO 
+					PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+				VALUES
+					(NEW.Id, NEW.DeleteAt, NEW.TeamId, NEW.DisplayName, NEW.Name, NEW.Header, NEW.Purpose)
+				ON CONFLICT UPDATE SET
+					DeleteAt = NEW.DeleteAt,
+					TeamId = NEW.TeamId,
+					DisplayName = NEW.DisplayName,
+					Name = NEW.Name,
+					Header = NEW.Header,
+					Purpose = NEW.Purpose
+				WHERE
+					Id = NEW.Id;
+			END;
+		`); err != nil {
+			mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_update"), mlog.Err(err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_CREATE_TRIGGER_SQLITE)
+		}
+
+		if _, err := s.GetMaster().ExecNoTimeout(`
+			CREATE TRIGGER IF NOT EXISTS
+				trigger_channels_delete
+			AFTER UPDATE ON
+				Channels
+			FOR EACH ROW
+			WHEN OLD.Type = 'O'
+			BEGIN
+				DELETE FROM
+					PublicChannels
+				WHERE
+					Id = OLD.Id;
+			END;
+		`); err != nil {
+			mlog.Critical("Failed to create trigger function", mlog.String("trigger", "trigger_channels_delete"), mlog.Err(err))
+			time.Sleep(time.Second)
+			os.Exit(EXIT_CREATE_TRIGGER_SQLITE)
 		}
 	} else {
 		mlog.Critical("Failed to create trigger because of missing driver")
@@ -999,12 +1100,12 @@ func (s SqlChannelStore) GetTeamChannels(teamId string) store.StoreChannel {
 		_, err := s.GetReplica().Select(data, "SELECT * FROM Channels WHERE TeamId = :TeamId And Type != 'D' ORDER BY DisplayName", map[string]interface{}{"TeamId": teamId})
 
 		if err != nil {
-			result.Err = model.NewAppError("SqlChannelStore.GetChannels", "store.sql_channel.get_channels.get.app_error", nil, "teamId="+teamId+",  err="+err.Error(), http.StatusInternalServerError)
+			result.Err = model.NewAppError("SqlChannelStore.GetTeamChannels", "store.sql_channel.get_channels.get.app_error", nil, "teamId="+teamId+",  err="+err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		if len(*data) == 0 {
-			result.Err = model.NewAppError("SqlChannelStore.GetChannels", "store.sql_channel.get_channels.not_found.app_error", nil, "teamId="+teamId, http.StatusNotFound)
+			result.Err = model.NewAppError("SqlChannelStore.GetTeamChannels", "store.sql_channel.get_channels.not_found.app_error", nil, "teamId="+teamId, http.StatusNotFound)
 			return
 		}
 
@@ -1741,7 +1842,7 @@ func (s SqlChannelStore) GetMembersForUser(teamId string, userId string) store.S
 
 func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeDeleted bool) store.StoreChannel {
 	return store.Do(func(result *store.StoreResult) {
-		deleteFilter := "AND DeleteAt = 0"
+		deleteFilter := "AND c.DeleteAt = 0"
 		if includeDeleted {
 			deleteFilter = ""
 		}
@@ -1750,10 +1851,10 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 			SELECT
 				*
 			FROM
-				Channels
+				Channels c
 			WHERE
-				TeamId = :TeamId
-				AND Type = 'O'
+				c.TeamId = :TeamId
+				AND c.Type = 'O'
 				` + deleteFilter + `
 				%v
 			LIMIT 50`
@@ -1786,27 +1887,23 @@ func (s SqlChannelStore) AutocompleteInTeam(teamId string, term string, includeD
 
 func (s SqlChannelStore) SearchInTeam(teamId string, term string, includeDeleted bool) store.StoreChannel {
 	return store.Do(func(result *store.StoreResult) {
-		deleteFilter := "AND DeleteAt = 0"
+		deleteFilter := "AND c.DeleteAt = 0"
 		if includeDeleted {
 			deleteFilter = ""
 		}
 		searchQuery := `
 			SELECT
-			    *
+				Channels.*
 			FROM
-			    Channels
-			WHERE Id IN (
-			    SELECT
-			        Id
-			    FROM
-			        PublicChannelsView
-			    WHERE
-			        TeamId = :TeamId
+				Channels
+			JOIN
+				PublicChannels c ON (c.Id = Channels.Id)
+			WHERE
+				c.TeamId = :TeamId
 				` + deleteFilter + `
 				SEARCH_CLAUSE
-			    ORDER BY DisplayName
-			    LIMIT 100
-			)
+			ORDER BY DisplayName
+			LIMIT 100
 		`
 
 		*result = s.performSearch(searchQuery, term, map[string]interface{}{"TeamId": teamId})
@@ -1819,12 +1916,12 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 			SELECT
 			    *
 			FROM
-			    Channels
+			    Channels c
 			WHERE
-			    TeamId = :TeamId
-				AND Type = 'O'
-				AND DeleteAt = 0
-			    AND Id NOT IN (SELECT
+			    c.TeamId = :TeamId
+				AND c.Type = 'O'
+				AND c.DeleteAt = 0
+			    AND c.Id NOT IN (SELECT
 			        Channels.Id
 			    FROM
 			        Channels,
@@ -1835,7 +1932,7 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 			        AND UserId = :UserId
 			        AND DeleteAt = 0)
 			    SEARCH_CLAUSE
-			ORDER BY DisplayName
+			ORDER BY c.DisplayName
 			LIMIT 100`
 
 		*result = s.performSearch(searchQuery, term, map[string]interface{}{"TeamId": teamId, "UserId": userId})
@@ -1844,7 +1941,7 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 
 func (s SqlChannelStore) buildLIKEClause(term string) (likeClause, likeTerm string) {
 	likeTerm = term
-	searchColumns := "Name, DisplayName, Purpose"
+	searchColumns := "c.Name, c.DisplayName, c.Purpose"
 
 	// These chars must be removed from the like query.
 	for _, c := range ignoreLikeSearchChar {
@@ -1879,7 +1976,7 @@ func (s SqlChannelStore) buildFulltextClause(term string) (fulltextClause, fullt
 	// Copy the terms as we will need to prepare them differently for each search type.
 	fulltextTerm = term
 
-	searchColumns := "Name, DisplayName, Purpose"
+	searchColumns := "c.Name, c.DisplayName, c.Purpose"
 
 	// These chars must be treated as spaces in the fulltext query.
 	for _, c := range spaceFulltextSearchChar {

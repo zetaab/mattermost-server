@@ -67,7 +67,8 @@ const (
 	EXIT_DOES_TRIGGER_EXISTS_MISSING  = 141
 	EXIT_CREATE_TRIGGER_POSTGRES      = 142
 	EXIT_CREATE_TRIGGER_MYSQL         = 143
-	EXIT_CREATE_TRIGGER_MISSING       = 144
+	EXIT_CREATE_TRIGGER_SQLITE        = 144
+	EXIT_CREATE_TRIGGER_MISSING       = 145
 )
 
 type SqlSupplierOldStores struct {
@@ -480,7 +481,7 @@ func (ss *SqlSupplier) DoesTriggerExist(triggerName string) bool {
 			FROM
 				pg_trigger
 			WHERE
-				tgname = ?
+				tgname = $1
 		`, triggerName)
 
 		if err != nil {
