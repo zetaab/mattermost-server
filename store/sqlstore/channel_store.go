@@ -1942,6 +1942,7 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 			WHERE
 			    c.TeamId = :TeamId
 			AND c.DeleteAt = 0
+			-- TODO: Consider a LEFT JOIN on ChannelMembers instead?
 			AND c.Id NOT IN (
 			    SELECT
 			        Channels.Id
