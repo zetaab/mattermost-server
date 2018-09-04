@@ -1045,7 +1045,7 @@ func testChannelStoreGetMoreChannels(t *testing.T, ss store.Store) {
 		Type:        model.CHANNEL_OPEN,
 	}
 	store.Must(ss.Channel().Save(&o7, -1))
-	store.Must(ss.Channel().Delete(o7.Id, time.Now().UnixNano()))
+	store.Must(ss.Channel().Delete(o7.Id, model.GetMillis()))
 
 	t.Run("both o3 and o6 listed in more channels", func(t *testing.T) {
 		result := <-ss.Channel().GetMoreChannels(teamId, userId, 0, 100)
@@ -1132,7 +1132,7 @@ func testChannelStoreGetPublicChannelsForTeam(t *testing.T, ss store.Store) {
 		Type:        model.CHANNEL_OPEN,
 	}
 	store.Must(ss.Channel().Save(&o5, -1))
-	store.Must(ss.Channel().Delete(o5.Id, time.Now().UnixNano()))
+	store.Must(ss.Channel().Delete(o5.Id, model.GetMillis()))
 
 	t.Run("both o1 and o4 listed in public channels", func(t *testing.T) {
 		cresult := <-ss.Channel().GetPublicChannelsForTeam(teamId, 0, 100)
@@ -1225,7 +1225,7 @@ func testChannelStoreGetPublicChannelsByIdsForTeam(t *testing.T, ss store.Store)
 		Type:        model.CHANNEL_OPEN,
 	}
 	store.Must(ss.Channel().Save(&oc5, -1))
-	store.Must(ss.Channel().Delete(oc5.Id, time.Now().UnixNano()))
+	store.Must(ss.Channel().Delete(oc5.Id, model.GetMillis()))
 
 	t.Run("only oc1 and oc4, among others, should be found as a public channel in the team", func(t *testing.T) {
 		result := <-ss.Channel().GetPublicChannelsByIdsForTeam(teamId, []string{oc1.Id, oc2.Id, model.NewId(), pc3.Id, oc4.Id})
@@ -1866,7 +1866,7 @@ func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
 
 	o2 := model.Channel{
 		TeamId:      otherTeamId,
-		DisplayName: "Channel2",
+		DisplayName: "ChannelA",
 		Name:        "zz" + model.NewId() + "b",
 		Type:        model.CHANNEL_OPEN,
 	}
@@ -1895,7 +1895,7 @@ func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
 
 	o3 := model.Channel{
 		TeamId:      teamId,
-		DisplayName: "ChannelA",
+		DisplayName: "ChannelA (alternate)",
 		Name:        "zz" + model.NewId() + "b",
 		Type:        model.CHANNEL_OPEN,
 	}
@@ -1903,7 +1903,7 @@ func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
 
 	o4 := model.Channel{
 		TeamId:      teamId,
-		DisplayName: "ChannelB",
+		DisplayName: "Channel B",
 		Name:        "zz" + model.NewId() + "b",
 		Type:        model.CHANNEL_PRIVATE,
 	}
@@ -1911,7 +1911,7 @@ func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
 
 	o5 := model.Channel{
 		TeamId:      teamId,
-		DisplayName: "ChannelC",
+		DisplayName: "Channel C",
 		Name:        "zz" + model.NewId() + "b",
 		Type:        model.CHANNEL_PRIVATE,
 	}
@@ -1967,98 +1967,64 @@ func testChannelStoreSearchInTeam(t *testing.T, ss store.Store) {
 
 	o12 := model.Channel{
 		TeamId:      teamId,
-		DisplayName: "Channel With Purpose",
+		DisplayName: "ChannelZ",
 		Purpose:     "This can now be searchable!",
 		Name:        "with-purpose",
 		Type:        model.CHANNEL_OPEN,
 	}
 	store.Must(ss.Channel().Save(&o12, -1))
 
-	// testCases := []struct {
-	// 	TeamId          string
-	// 	Term            string
-	// 	IncludedDeleted bool
-	// 	ExpectedResults *model.ChannelList
-	// }{
-	// 	{teamId, "ChannelA", false, &model.ChannelList{}},
-	// 	{teamId, "", false, &model.ChannelList{}},
-	// 	{teamId, "blargh", false, &model.ChannelList{}},
-	// 	{teamId, "off-", false, &model.ChannelList{&o7, &o6}},
-	// 	{teamId, "off-topic", false, &model.ChannelList{&o6}},
-	// 	{teamId, "town square", false, &model.ChannelList{&o9}},
-	// 	{teamId, "the", false, &model.ChannelList{&o10}},
-	// 	{teamId, "Mobile", false, &model.ChannelList{&o11}},
-	// 	{teamId, "now searchable", false, &model.ChannelList{&o12}},
-	// 	{teamId, "town square |", false, &model.ChannelList{&o9}},
-	// }
+	o13 := model.Channel{
+		TeamId:      teamId,
+		DisplayName: "ChannelA (deleted)",
+		Name:        model.NewId(),
+		Type:        model.CHANNEL_OPEN,
+	}
+	store.Must(ss.Channel().Save(&o13, -1))
+	o13.DeleteAt = model.GetMillis()
+	o13.UpdateAt = o13.DeleteAt
+	store.Must(ss.Channel().Delete(o13.Id, o13.DeleteAt))
+
+	testCases := []struct {
+		Description     string
+		TeamId          string
+		Term            string
+		IncludeDeleted  bool
+		ExpectedResults *model.ChannelList
+	}{
+		{"ChannelA", teamId, "ChannelA", false, &model.ChannelList{&o1, &o3}},
+		{"ChannelA, include deleted", teamId, "ChannelA", true, &model.ChannelList{&o1, &o3, &o13}},
+		{"ChannelA, other team", otherTeamId, "ChannelA", false, &model.ChannelList{&o2}},
+		{"empty string", teamId, "", false, &model.ChannelList{&o1, &o3, &o12, &o11, &o7, &o6, &o10, &o9}},
+		{"no matches", teamId, "blargh", false, &model.ChannelList{}},
+		{"prefix", teamId, "off-", false, &model.ChannelList{&o7, &o6}},
+		{"full match with dash", teamId, "off-topic", false, &model.ChannelList{&o6}},
+		{"town square", teamId, "town square", false, &model.ChannelList{&o9}},
+		{"the in name", teamId, "the", false, &model.ChannelList{&o10}},
+		{"Mobile", teamId, "Mobile", false, &model.ChannelList{&o11}},
+		{"search purpose", teamId, "now searchable", false, &model.ChannelList{&o12}},
+		{"pipe ignored", teamId, "town square |", false, &model.ChannelList{&o9}},
+	}
 
 	for name, search := range map[string]func(teamId string, term string, includeDeleted bool) store.StoreChannel{
 		"AutocompleteInTeam": ss.Channel().AutocompleteInTeam,
 		"SearchInTeam":       ss.Channel().SearchInTeam,
 	} {
-		t.Run(name, func(t *testing.T) {
-			result := <-search(teamId, "ChannelA", false)
-			require.Nil(t, result.Err)
-			channels := result.Data.(*model.ChannelList)
-			require.Len(t, *channels, 2)
+		for _, testCase := range testCases {
+			t.Run(testCase.Description, func(t *testing.T) {
+				result := <-search(testCase.TeamId, testCase.Term, testCase.IncludeDeleted)
+				require.Nil(t, result.Err)
 
-			result = <-search(teamId, "", false)
-			require.Nil(t, result.Err)
-			channels = result.Data.(*model.ChannelList)
-			// require.NotEmpty(t, *channels, 0)
-			expectedChannels := &model.ChannelList{
-				&o12, &o1, &o3, &o11, &o7, &o6, &o10, &o9,
-			}
-			channels = result.Data.(*model.ChannelList)
+				channels := result.Data.(*model.ChannelList)
 
-			// AutoCompleteInTeam doesn't currently sort its output results.
-			if name == "AutocompleteInTeam" {
-				sort.Sort(ByChannelDisplayName(*channels))
-			}
-
-			displayNames := func(list *model.ChannelList) []string {
-				names := make([]string, 0, len(*list))
-				for _, channel := range *list {
-					names = append(names, channel.DisplayName)
+				// AutoCompleteInTeam doesn't currently sort its output results.
+				if name == "AutocompleteInTeam" {
+					sort.Sort(ByChannelDisplayName(*channels))
 				}
 
-				return names
-			}
-			require.Equal(t, displayNames(expectedChannels), displayNames(channels))
-			// require.Equal(t, &model.ChannelList{&o1, &o2, &o3, &o6, &o7, &o9, &o10, &o11, &o12}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "blargh", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "off-", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o7, &o6}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "off-topic", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o6}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "town square", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o9}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "the", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o10}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "Mobile", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o11}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "now searchable", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o12}, result.Data.(*model.ChannelList))
-
-			result = <-search(teamId, "town square |", false)
-			require.Nil(t, result.Err)
-			require.Equal(t, &model.ChannelList{&o9}, result.Data.(*model.ChannelList))
-		})
+				require.Equal(t, testCase.ExpectedResults, channels)
+			})
+		}
 	}
 }
 
