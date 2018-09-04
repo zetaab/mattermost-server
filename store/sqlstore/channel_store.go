@@ -976,7 +976,6 @@ func (s SqlChannelStore) GetMoreChannels(teamId string, userId string, offset in
 			WHERE
 			    c.TeamId = :TeamId1
 			AND c.DeleteAt = 0
-			-- TODO: Consider a LEFT JOIN on ChannelMembers instead?
 			AND c.Id NOT IN (
 			    SELECT
 			        c.Id
@@ -987,7 +986,6 @@ func (s SqlChannelStore) GetMoreChannels(teamId string, userId string, offset in
 			    WHERE
 			        c.TeamId = :TeamId2
 			    AND cm.UserId = :UserId
-			    AND c.DeleteAt = 0
 			)
 			ORDER BY 
 				c.DisplayName
@@ -1942,7 +1940,6 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 			WHERE
 			    c.TeamId = :TeamId
 			AND c.DeleteAt = 0
-			-- TODO: Consider a LEFT JOIN on ChannelMembers instead?
 			AND c.Id NOT IN (
 			    SELECT
 			        Channels.Id
@@ -1953,7 +1950,6 @@ func (s SqlChannelStore) SearchMore(userId string, teamId string, term string) s
 			        Id = ChannelId
 			    AND TeamId = :TeamId
 			    AND UserId = :UserId
-			    AND DeleteAt = 0
 		        )
 			SEARCH_CLAUSE
 			ORDER BY c.DisplayName
