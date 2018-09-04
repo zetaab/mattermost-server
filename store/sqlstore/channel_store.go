@@ -976,6 +976,7 @@ func (s SqlChannelStore) GetMoreChannels(teamId string, userId string, offset in
 			WHERE
 			    c.TeamId = :TeamId1
 			AND c.DeleteAt = 0
+			-- TODO: Consider a LEFT JOIN on ChannelMembers instead?
 			AND c.Id NOT IN (
 			    SELECT
 			        c.Id
@@ -985,8 +986,8 @@ func (s SqlChannelStore) GetMoreChannels(teamId string, userId string, offset in
 			        ChannelMembers cm ON (cm.ChannelId = c.Id)
 			    WHERE
 			        c.TeamId = :TeamId2
-			    AND c.DeleteAt = 0
 			    AND cm.UserId = :UserId
+			    AND c.DeleteAt = 0
 			)
 			ORDER BY 
 				c.DisplayName
@@ -1059,14 +1060,16 @@ func (s SqlChannelStore) GetPublicChannelsByIdsForTeam(teamId string, channelIds
 		data := &model.ChannelList{}
 		_, err := s.GetReplica().Select(data, `
 			SELECT
-			    *
+			    Channels.*
 			FROM
-			    PublicChannels
+			    Channels
+			JOIN
+			    PublicChannels pc ON (pc.Id = Channels.Id)
 			WHERE
-			    TeamId = :teamId
-			AND DeleteAt = 0
-			AND Id IN (`+idQuery+`)
-			ORDER BY DisplayName
+			    pc.TeamId = :teamId
+			AND pc.DeleteAt = 0
+			AND pc.Id IN (`+idQuery+`)
+			ORDER BY pc.DisplayName
 		`, props)
 
 		if err != nil {
@@ -1919,7 +1922,7 @@ func (s SqlChannelStore) SearchInTeam(teamId string, term string, includeDeleted
 			    c.TeamId = :TeamId
 			    `+deleteFilter+`
 			    SEARCH_CLAUSE
-			ORDER BY DisplayName
+			ORDER BY c.DisplayName
 			LIMIT 100
 		`, term, map[string]interface{}{
 			"TeamId": teamId,
