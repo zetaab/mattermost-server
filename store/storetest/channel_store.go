@@ -12,11 +12,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/mattermost/gorp"
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/mattermost/mattermost-server/store"
 )
 
-func TestChannelStore(t *testing.T, ss store.Store) {
+type SqlSupplier interface {
+	GetMaster() *gorp.DbMap
+}
+
+func TestChannelStore(t *testing.T, ss store.Store, s SqlSupplier) {
 	createDefaultRoles(t, ss)
 
 	t.Run("Save", func(t *testing.T) { testChannelStoreSave(t, ss) })
@@ -56,6 +61,7 @@ func TestChannelStore(t *testing.T, ss store.Store) {
 	t.Run("MigrateChannelMembers", func(t *testing.T) { testChannelStoreMigrateChannelMembers(t, ss) })
 	t.Run("ResetAllChannelSchemes", func(t *testing.T) { testResetAllChannelSchemes(t, ss) })
 	t.Run("ClearAllCustomRoleAssignments", func(t *testing.T) { testChannelStoreClearAllCustomRoleAssignments(t, ss) })
+	t.Run("MaterializedPublicChannels", func(t *testing.T) { testMaterializedPublicChannels(t, ss, s) })
 }
 
 func testChannelStoreSave(t *testing.T, ss store.Store) {
@@ -2419,4 +2425,155 @@ func testChannelStoreClearAllCustomRoleAssignments(t *testing.T, ss store.Store)
 	r4 := <-ss.Channel().GetMember(m4.ChannelId, m4.UserId)
 	require.Nil(t, r4.Err)
 	assert.Equal(t, "", r4.Data.(*model.ChannelMember).Roles)
+}
+
+// testMaterializedPublicChannels tests edge cases involving the triggers and stored procedures
+// that materialize the PublicChannels table.
+func testMaterializedPublicChannels(t *testing.T, ss store.Store, s SqlSupplier) {
+	teamId := model.NewId()
+
+	// o1 is a public channel on the team
+	o1 := model.Channel{
+		TeamId:      teamId,
+		DisplayName: "Open Channel",
+		Name:        model.NewId(),
+		Type:        model.CHANNEL_OPEN,
+	}
+	store.Must(ss.Channel().Save(&o1, -1))
+
+	// o2 is another public channel on the team
+	o2 := model.Channel{
+		TeamId:      teamId,
+		DisplayName: "Open Channel 2",
+		Name:        model.NewId(),
+		Type:        model.CHANNEL_OPEN,
+	}
+	store.Must(ss.Channel().Save(&o2, -1))
+
+	t.Run("o1 and o2 initially listed in public channels", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o1, &o2}, result.Data.(*model.ChannelList))
+	})
+
+	o1.DeleteAt = model.GetMillis()
+	o1.UpdateAt = model.GetMillis()
+	store.Must(ss.Channel().Delete(o1.Id, o1.DeleteAt))
+
+	t.Run("o1 still listed in public channels when marked as deleted", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o1, &o2}, result.Data.(*model.ChannelList))
+	})
+
+	<-ss.Channel().PermanentDelete(o1.Id)
+
+	t.Run("o1 no longer listed in public channels when permanently deleted", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o2}, result.Data.(*model.ChannelList))
+	})
+
+	o2.Type = model.CHANNEL_PRIVATE
+	require.Nil(t, (<-ss.Channel().Update(&o2)).Err)
+
+	t.Run("o2 no longer listed since now private", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{}, result.Data.(*model.ChannelList))
+	})
+
+	o2.Type = model.CHANNEL_OPEN
+	require.Nil(t, (<-ss.Channel().Update(&o2)).Err)
+
+	t.Run("o2 listed once again since now public", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o2}, result.Data.(*model.ChannelList))
+	})
+
+	// o3 is a public channel on the team that already existed in the PublicChannels table.
+	o3 := model.Channel{
+		Id:          model.NewId(),
+		TeamId:      teamId,
+		DisplayName: "Open Channel 3",
+		Name:        model.NewId(),
+		Type:        model.CHANNEL_OPEN,
+	}
+
+	_, err := s.GetMaster().ExecNoTimeout(`
+		INSERT INTO
+		    PublicChannels(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose)
+		VALUES
+		    (:Id, :DeleteAt, :TeamId, :DisplayName, :Name, :Header, :Purpose);
+	`, map[string]interface{}{
+		"Id":          o3.Id,
+		"DeleteAt":    o3.DeleteAt,
+		"TeamId":      o3.TeamId,
+		"DisplayName": o3.DisplayName,
+		"Name":        o3.Name,
+		"Header":      o3.Header,
+		"Purpose":     o3.Purpose,
+	})
+	require.Nil(t, err)
+
+	o3.DisplayName = "Open Channel 3 - Modified"
+
+	_, err = s.GetMaster().ExecNoTimeout(`
+		INSERT INTO
+		    Channels(Id, CreateAt, UpdateAt, DeleteAt, TeamId, Type, DisplayName, Name, Header, Purpose, LastPostAt, TotalMsgCount, ExtraUpdateAt, CreatorId)
+		VALUES
+		    (:Id, :CreateAt, :UpdateAt, :DeleteAt, :TeamId, :Type, :DisplayName, :Name, :Header, :Purpose, :LastPostAt, :TotalMsgCount, :ExtraUpdateAt, :CreatorId);
+	`, map[string]interface{}{
+		"Id":            o3.Id,
+		"CreateAt":      o3.CreateAt,
+		"UpdateAt":      o3.UpdateAt,
+		"DeleteAt":      o3.DeleteAt,
+		"TeamId":        o3.TeamId,
+		"Type":          o3.Type,
+		"DisplayName":   o3.DisplayName,
+		"Name":          o3.Name,
+		"Header":        o3.Header,
+		"Purpose":       o3.Purpose,
+		"LastPostAt":    o3.LastPostAt,
+		"TotalMsgCount": o3.TotalMsgCount,
+		"ExtraUpdateAt": o3.ExtraUpdateAt,
+		"CreatorId":     o3.CreatorId,
+	})
+	require.Nil(t, err)
+
+	t.Run("verify o3 INSERT converted to UPDATE", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o2, &o3}, result.Data.(*model.ChannelList))
+	})
+
+	// o4 is a public channel on the team that existed in the Channels table but was omitted from the PublicChannels table.
+	o4 := model.Channel{
+		TeamId:      teamId,
+		DisplayName: "Open Channel 4",
+		Name:        model.NewId(),
+		Type:        model.CHANNEL_OPEN,
+	}
+
+	store.Must(ss.Channel().Save(&o4, -1))
+
+	_, err = s.GetMaster().ExecNoTimeout(`
+		DELETE FROM
+		    PublicChannels
+		WHERE
+		    Id = :Id
+	`, map[string]interface{}{
+		"Id": o4.Id,
+	})
+	require.Nil(t, err)
+
+	o4.DisplayName += " - Modified"
+	require.Nil(t, (<-ss.Channel().Update(&o4)).Err)
+
+	t.Run("verify o4 UPDATE converted to INSERT", func(t *testing.T) {
+		result := <-ss.Channel().SearchInTeam(teamId, "", true)
+		require.Nil(t, result.Err)
+		require.Equal(t, &model.ChannelList{&o2, &o3, &o4}, result.Data.(*model.ChannelList))
+	})
 }

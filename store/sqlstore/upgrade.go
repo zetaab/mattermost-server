@@ -500,16 +500,16 @@ func migratePublicChannels(sqlStore SqlStore) error {
 
 	if _, err := transaction.Exec(`
 		INSERT INTO PublicChannels 
-			(Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose) 
+		    (Id, DeleteAt, TeamId, DisplayName, Name, Header, Purpose) 
 		SELECT 
-			c.Id, c.DeleteAt, c.TeamId, c.DisplayName, c.Name, c.Header, c.Purpose 
+		    c.Id, c.DeleteAt, c.TeamId, c.DisplayName, c.Name, c.Header, c.Purpose 
 		FROM 
-			Channels c
+		    Channels c
 		LEFT JOIN
-			PublicChannels pc ON (pc.Id = c.Id)	
+		    PublicChannels pc ON (pc.Id = c.Id)	
 		WHERE 
-			Type = 'O'
-			AND pc.Id IS NULL
+		    c.Type = 'O'
+		AND pc.Id IS NULL
 	`); err != nil {
 		return err
 	}
